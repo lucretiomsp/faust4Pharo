@@ -15,7 +15,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Set up MSYS2
       uses: msys2/setup-msys2@v2
@@ -26,10 +26,27 @@ jobs:
     - name: Install dependencies
       shell: msys2 {0}
       run: |
+        # Update the package database
         pacman -Sy --noconfirm
-        pacman -S --noconfirm mingw-w64-x86_64-gcc mingw-w64-x86_64-portaudio mingw-w64-x86_64-libfaust
+        # Install required packages
+        pacman -S --noconfirm mingw-w64-x86_64-gcc mingw-w64-x86_64-portaudio
 
     - name: Compile
       shell: msys2 {0}
       run: |
-        g++ -std=c++11 -O3 architecture/faust/dsp/faust-dynamic-engine.cpp -DINTERP_DSP -DPORTAUDIO_DRIVER -DS
+        # Set the path to libfaust
+        FAUST_PATH=$GITHUB_WORKSPACE/librariesBundle_win
+        # Compile the project
+        g++ -std=c++11 -O3 architecture/faust/dsp/faust-dynamic-engine.cpp \
+            -DINTERP_DSP -DPORTAUDIO_DRIVER -DSOUNDFILE -DDAISY \
+            -Iarchitecture \
+            -Ibuild/include \
+            -L$FAUST_PATH/lib 
+            -lportaudio -lfaust \
+            -shared -o librariesBundle/libdynamic-engine.dll
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: dynamic-engine
+        path: librariesBundle/libdynamic-engine.dll
