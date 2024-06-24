@@ -23,22 +23,6 @@ jobs:
         msystem: MINGW64
         update: true
 
-    - name: Install dependencies
-      shell: msys2 {0}
-      run: |
-        # Update the package database
-        pacman -Sy --noconfirm
-        # Install required packages
-        pacman -S --noconfirm mingw-w64-x86_64-gcc
-
-    - name: Verify library files
-      shell: powershell
-      run: |
-        Write-Host "Contents of librariesBundle_win/lib:"
-        Get-ChildItem -Path $env:GITHUB_WORKSPACE/librariesBundle_win/lib
-        Write-Host "Contents of librariesBundle_win/include:"
-        Get-ChildItem -Path $env:GITHUB_WORKSPACE/librariesBundle_win/include
-
     - name: Compile
       shell: msys2 {0}
       run: |
