@@ -24,7 +24,7 @@ jobs:
 
     - name: Build Faust
       run: |
-        make -C build cmake BACKENDS=all.cmake TARGETS=windows.cmake
+        make -C build cmake BACKENDS=all.cmake TARGETS=win-ci.cmake
         make -C build
         
    
