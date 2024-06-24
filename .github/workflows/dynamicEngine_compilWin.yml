@@ -1,0 +1,38 @@
+name: Windows Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: true
+
+    - name: Install dependencies
+      run: |
+        pacman -S --noconfirm mingw-w64-x86_64-gcc mingw-w64-x86_64-portaudio mingw-w64-x86_64-libfaust
+
+    - name: Compile
+      run: |
+        g++ -std=c++11 -O3 architecture/faust/dsp/faust-dynamic-engine.cpp -DINTERP_DSP -DPORTAUDIO_DRIVER -DSOUNDFILE -DDAISY -I/architecture -L./librariesBundle -lportaudio -lfaust -shared -o librariesBundle/libdynamic-engine.dll
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: dynamic-engine
+        path: librariesBundle/libdynamic-engine.dll
