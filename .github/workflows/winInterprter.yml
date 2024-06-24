@@ -24,10 +24,8 @@ jobs:
 
     - name: Build Faust
       run: |
+        make all
         
-        make -C build cmake BACKENDS=regular.cmake TARGETS=win-ci.cmake
-        make -C build
-          
     - name: Prepare artifacts
       run: |
         mkdir -p builtArtifacts
