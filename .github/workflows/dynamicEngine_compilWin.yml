@@ -29,24 +29,25 @@ jobs:
         # Update the package database
         pacman -Sy --noconfirm
         # Install required packages
-        pacman -S --noconfirm mingw-w64-x86_64-gcc mingw-w64-x86_64-portaudio
+        pacman -S --noconfirm mingw-w64-x86_64-gcc
 
     - name: Compile
       shell: msys2 {0}
       run: |
-        # Set the path to libfaust
+        # Set the path to the libraries
         FAUST_PATH=$GITHUB_WORKSPACE/librariesBundle_win
         # Compile the project
         g++ -std=c++11 -O3 architecture/faust/dsp/faust-dynamic-engine.cpp \
             -DINTERP_DSP -DPORTAUDIO_DRIVER -DSOUNDFILE -DDAISY \
             -Iarchitecture \
             -Ibuild/include \
-            -L$FAUST_PATH/lib 
+            -I$FAUST_PATH/include \
+            -L$FAUST_PATH/lib \
             -lportaudio -lfaust \
-            -shared -o librariesBundle/libdynamic-engine.dll
+            -shared -o librariesBundle_win/lib/libdynamic-engine.dll
 
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
         name: dynamic-engine
-        path: librariesBundle/libdynamic-engine.dll
+        path: librariesBundle_win/lib/libdynamic-engine.dll
