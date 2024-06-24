@@ -12,7 +12,7 @@ on:
 
 jobs:
   build:
-    if: github.repository_owner == 'grame-cncm' || github.event_name == 'pull_request'
+   
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v2
@@ -25,5 +25,5 @@ jobs:
 
     - name: Build Faust
       run: |
-        make -C build cmake BACKENDS=regular.cmake TARGETS=win-ci.cmake
+        make -C build cmake BACKENDS=all.cmake TARGETS=win-ci.cmake
         make -C build
