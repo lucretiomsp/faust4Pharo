@@ -31,6 +31,13 @@ jobs:
         # Install required packages
         pacman -S --noconfirm mingw-w64-x86_64-gcc
 
+    - name: Verify library files
+      run: |
+        echo "Contents of librariesBundle_win/lib:"
+        ls -la $GITHUB_WORKSPACE/librariesBundle_win/lib
+        echo "Contents of librariesBundle_win/include:"
+        ls -la $GITHUB_WORKSPACE/librariesBundle_win/include
+
     - name: Compile
       shell: msys2 {0}
       run: |
@@ -43,8 +50,9 @@ jobs:
             -Ibuild/include \
             -I$FAUST_PATH/include \
             -L$FAUST_PATH/lib \
-            -lportaudio -lfaust \
-            -shared -o $FAUST_PATH/lib/libdynamic-engine.dll
+            -o $FAUST_PATH/lib/libdynamic-engine.dll \
+            -Wl,--out-implib,$FAUST_PATH/lib/libdynamic-engine.a \
+            -lfaust -lportaudio_x64
 
     - name: Upload artifact
       uses: actions/upload-artifact@v2
