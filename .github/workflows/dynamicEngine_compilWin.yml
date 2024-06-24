@@ -24,15 +24,12 @@ jobs:
         update: true
 
     - name: Install dependencies
+      shell: msys2 {0}
       run: |
+        pacman -Sy --noconfirm
         pacman -S --noconfirm mingw-w64-x86_64-gcc mingw-w64-x86_64-portaudio mingw-w64-x86_64-libfaust
 
     - name: Compile
+      shell: msys2 {0}
       run: |
-        g++ -std=c++11 -O3 architecture/faust/dsp/faust-dynamic-engine.cpp -DINTERP_DSP -DPORTAUDIO_DRIVER -DSOUNDFILE -DDAISY -I/architecture -L./librariesBundle -lportaudio -lfaust -shared -o librariesBundle/libdynamic-engine.dll
-
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: dynamic-engine
-        path: librariesBundle/libdynamic-engine.dll
+        g++ -std=c++11 -O3 architecture/faust/dsp/faust-dynamic-engine.cpp -DINTERP_DSP -DPORTAUDIO_DRIVER -DS
