@@ -29,7 +29,7 @@ jobs:
         make -C build
 
     - name: Upload artifacts
-      uses: actions/upload@v2
+      uses: actions/upload-artifact@v4
       with:
         name: WindowsIntrp
         path: builtForPharo
