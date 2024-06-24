@@ -1,18 +1,29 @@
-name: Build on Windows
+name: Windows
 
-on: [push]
+on:
+  push:
+    branches:
+        - '*'
+  pull_request:
+    branches: [ master-dev ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
 
 jobs:
   build:
+    if: github.repository_owner == 'grame-cncm' || github.event_name == 'pull_request'
     runs-on: windows-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
+    - uses: actions/checkout@v2
 
-    - name: Set up make
-      run: choco install make
-      shell: powershell
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1
+  
+    - name: Get latest CMake and ninja
+      uses: lukka/get-cmake@latest
 
-    - name: Run make all
-      run: make all
+    - name: Build Faust
+      run: |
+        make -C build cmake BACKENDS=regular.cmake TARGETS=win-ci.cmake
+        make -C build
