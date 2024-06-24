@@ -44,7 +44,7 @@ jobs:
             -I$FAUST_PATH/include \
             -L$FAUST_PATH/lib \
             -lportaudio -lfaust \
-            -shared -o librariesBundle_win/lib/libdynamic-engine.dll
+            -shared -o $FAUST_PATH/lib/libdynamic-engine.dll
 
     - name: Upload artifact
       uses: actions/upload-artifact@v2
