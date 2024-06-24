@@ -32,11 +32,12 @@ jobs:
         pacman -S --noconfirm mingw-w64-x86_64-gcc
 
     - name: Verify library files
+      shell: powershell
       run: |
-        echo "Contents of librariesBundle_win/lib:"
-        ls -la $GITHUB_WORKSPACE/librariesBundle_win/lib
-        echo "Contents of librariesBundle_win/include:"
-        ls -la $GITHUB_WORKSPACE/librariesBundle_win/include
+        Write-Host "Contents of librariesBundle_win/lib:"
+        Get-ChildItem -Path $env:GITHUB_WORKSPACE/librariesBundle_win/lib
+        Write-Host "Contents of librariesBundle_win/include:"
+        Get-ChildItem -Path $env:GITHUB_WORKSPACE/librariesBundle_win/include
 
     - name: Compile
       shell: msys2 {0}
