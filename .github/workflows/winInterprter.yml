@@ -1,4 +1,4 @@
-name: Windows
+name: WindowsIntrp
 
 on:
   push:
@@ -12,7 +12,6 @@ on:
 
 jobs:
   build:
-    if: github.repository_owner == 'grame-cncm' || github.event_name == 'pull_request'
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v2
@@ -31,7 +30,7 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload@v2
       with:
-        name: Windows
+        name: WindowsIntrp
         path: builtForPharo
       
       
