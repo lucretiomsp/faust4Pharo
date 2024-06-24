@@ -27,12 +27,18 @@ jobs:
         
         make -C build cmake BACKENDS=regular.cmake TARGETS=win-ci.cmake
         make -C build
+          
+    - name: Prepare artifacts
+      run: |
+        mkdir -p builtArtifacts
+        cp -r builtForPharo/* builtArtifacts/
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v2
       with:
-        name: WindowsIntrp
-        path: builtForPharo
+          name: builtArtifacts
+          path: builtArtifacts
+  
       
       
       
