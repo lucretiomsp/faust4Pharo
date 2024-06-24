@@ -24,6 +24,7 @@ jobs:
 
     - name: Build Faust
       run: |
+        mkdir -p builtForPharo
         make -C build cmake BACKENDS=regular.cmake TARGETS=win-ci.cmake
         make -C build
 
@@ -31,7 +32,7 @@ jobs:
       uses: actions/upload@v2
       with:
         name: WindowsIntrp
-        path: ./builtForPharo
+        path: builtForPharo
       
       
       
