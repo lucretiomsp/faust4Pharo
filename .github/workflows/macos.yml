@@ -4,7 +4,7 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-  # Allows you to run this workflow on pull requests to master-dev
+  # Runs the workflow on pull requests to the `master-dev` branch
   pull_request:
     branches: [master-dev]
 
@@ -21,4 +21,3 @@ jobs:
       - name: Build Faust
         run: make
 
-      # Upload the built binary as an artifact
