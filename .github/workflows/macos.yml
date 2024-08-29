@@ -1,7 +1,7 @@
 name: MacOS
 
 on:
-  push:
+    workflow_dispatch:
     branches: 
         - '*'
   pull_request:
