@@ -53,7 +53,7 @@ jobs:
         export LLVM_ROOT=$(llvm-config --prefix | tr '\n' ' ')
         echo "LLVM_ROOT: " $LLVM_ROOT
         cd build
-        cmake -C ./backends/all.cmake . -Bbuild ${{matrix.cmake-options}} -DINCLUDE_DYNAMIC=ON -DINCLUDE_STATIC=ON -DINCLUDE_LLVM=ON -DUSE_LLVM_CONFIG=ON
+        cmake -C ./backends/all.cmake . -Bbuild ${{matrix.cmake-options}} -DINCLUDE_DYNAMIC=ON -DINCLUDE_STATIC=ON -DINCLUDE_LLVM=OFF -DUSE_LLVM_CONFIG=OFF
         cmake --build build --config Release
    
     - name: Make distribution
