@@ -10,8 +10,7 @@ on:
 
 jobs:
   build:
-    # Ensure the job runs only if the repository owner is 'grame-cncm' or it's a pull request
-    if: github.repository_owner == 'grame-cncm' || github.event_name == 'pull_request'
+   
     runs-on: macos-latest
     steps:
       # Check out the repository
