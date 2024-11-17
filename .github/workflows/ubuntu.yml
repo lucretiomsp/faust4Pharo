@@ -5,7 +5,6 @@ on:
 
 jobs:
   build:
-    
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -19,6 +18,7 @@ jobs:
       run: echo "/usr/lib/llvm-14/bin" >> $GITHUB_PATH
 
     - name: Build Faust
+      run: |
         make -C build cmake BACKENDS=regular.cmake 
         make -C build
 
