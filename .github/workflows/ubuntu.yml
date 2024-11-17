@@ -1,18 +1,14 @@
 name: Ubuntu
 
 on:
-  push:
-    branches: 
-        - '*'
-  pull_request:
-    branches: [ master-dev ]
+  workflow_dispatch:
 
 jobs:
   build:
     if: github.repository_owner == 'grame-cncm' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Install libmicrohttpd
       run: |
@@ -20,4 +16,4 @@ jobs:
         sudo apt-get install libmicrohttpd-dev
 
     - name: Build Faust
-      run: make
+      run: make all
