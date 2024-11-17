@@ -20,3 +20,20 @@ jobs:
 
     - name: Build Faust
       run: make all
+
+    - name: Find and List Build Artifacts
+      run: |
+        echo "Searching for potential build artifacts..."
+        find . -type f -name "*.so" -o -name "*.a" -o -name "*.lib" -o -name "*.dll" || echo "No libraries found."
+        find . -type f -name "*" | tee artifacts.txt
+      # This step helps debug and lists all files for review.
+
+    - name: Upload All Potential Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: faust-build-artifacts
+        path: |
+          **/*.so
+          **/*.a
+          **/*.lib
+          **/*.dll
