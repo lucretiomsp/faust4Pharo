@@ -19,7 +19,7 @@ jobs:
       run: echo "/usr/lib/llvm-14/bin" >> $GITHUB_PATH
 
     - name: Build Faust
-      run: make all
+      run: make regular
 
     - name: Find and List Build Artifacts
       run: |
