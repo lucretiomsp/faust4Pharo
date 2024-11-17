@@ -19,7 +19,8 @@ jobs:
       run: echo "/usr/lib/llvm-14/bin" >> $GITHUB_PATH
 
     - name: Build Faust
-      run: make regular
+        make -C build cmake BACKENDS=regular.cmake 
+        make -C build
 
     - name: Find and List Build Artifacts
       run: |
