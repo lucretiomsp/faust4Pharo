@@ -1,40 +1,39 @@
 name: Ubuntu
 
 on:
+
   workflow_dispatch:
+
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+
+    - uses: actions/checkout@v2
+    - name: Checkout submodules
+      run: git submodule update --init --recursive
+
 
     - name: Install Dependencies
       run: |
         sudo apt-get update -qq
-        sudo apt-get install -y libmicrohttpd-dev llvm-14 llvm-14-dev
 
-    - name: Add LLVM to PATH
-      run: echo "/usr/lib/llvm-14/bin" >> $GITHUB_PATH
+        sudo apt-get install libmicrohttpd-dev
 
     - name: Build Faust
-      run: |
-        make -C build cmake BACKENDS=regular.cmake 
-        make -C build
+      run: make
 
-    - name: Find and List Build Artifacts
+    - name: Copy c header to expected path by impulse test
       run: |
-        echo "Searching for potential build artifacts..."
-        find . -type f -name "*.so" -o -name "*.a" -o -name "*.lib" -o -name "*.dll" || echo "No libraries found."
-        find . -type f -name "*" | tee artifacts.txt
-      # This step helps debug and lists all files for review.
+         mkdir -p architecture/faust/dsp/
+         cp compiler/generator/libfaust.h architecture/faust/dsp/
 
-    - name: Upload All Potential Artifacts
-      uses: actions/upload-artifact@v3
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
       with:
-        name: faust-build-artifacts
-        path: |
-          **/*.so
-          **/*.a
-          **/*.lib
-          **/*.dll
+        toolchain: stable
+
+    - name: Run impulse tests (C++ and Rust)
+      run: cd tests/impulse-tests && make github_action
+

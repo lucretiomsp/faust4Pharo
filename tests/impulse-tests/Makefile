@@ -77,22 +77,25 @@ help:
 	@echo " 'jax'    : check double output with JAX backend and various options"
 	@echo " 'julia'  : check double output with Julia backend and various options"
 	@echo " 'jsfx'   : check double output with JSFX backend and various options"
+	@echo " 'signal' : check double output with signal interpreter"
 	@echo " 'me'     : check double outputs with the cpp backend in scalar with activated math exceptions"
 	@echo "Warning: you must have at least 10G available on your hard disk to run all the tests"
 	@echo
 	@echo "Specific targets:"
 	@echo " 'travis'                 : tests subset for travis"
 	@echo " 'web'                    : call the wast/wasm targets"
-	@echo " 'reference'              : builds the reference files"
-	@echo " 'reference-box'          : builds the reference box files"
-	@echo " 'reference-signal'       : builds the reference signal files"
-	@echo " 'reference-signal-wn'    : builds the reference signal files without normalisation (FAUST_OPT=FAUST_SIG_NO_NORM)"
-	@echo " 'reference-type'         : builds the reference signal type files"
-	@echo " 'reference-cpp'          : builds the reference C++ files"
+	@echo " 'reference'              : build the reference files"
+	@echo " 'reference-box'          : build the reference box files"
+	@echo " 'reference-signal'       : build the reference signal files"
+	@echo " 'reference-signal-wn'    : build the reference signal files without normalisation (FAUST_OPT=FAUST_SIG_NO_NORM)"
+	@echo " 'reference-type'         : build the reference signal type files"
+	@echo " 'reference-fir'          : build the reference FIR files"
+	@echo " 'reference-cpp'          : build the reference C++ files"
 	@echo " 'test-box'               : test box creation intermediate step"
 	@echo " 'test-signal'            : test signal creation intermediate step"
 	@echo " 'test-signal-wn'         : test signal creation intermediate step without normalisation (FAUST_OPT=FAUST_SIG_NO_NORM)"
 	@echo " 'test-type'              : test signal typing intermediate step"
+	@echo " 'test-fir'               : test FIR intermediate step"
 	@echo " 'test-cpp'               : test C++ generation step"
 	@echo " 'bench'                  : benchmark using faustbench-llvm and faustbench"
 	@echo " 'interp-tracer'          : test using the interp-tracer tool"
@@ -116,6 +119,13 @@ travis:
 	$(MAKE) -f Make.gcc outdir=cpp/double/vec/fun  lang=cpp arch=impulsearch.cpp FAUSTOPTIONS="-I dsp -double -vec -fun"
 	$(MAKE) -f Make.gcc outdir=cpp/double/omp      lang=cpp arch=impulsearch.cpp FAUSTOPTIONS="-I dsp -double -omp"
 	#$(MAKE) -f Make.gcc outdir=cpp/double/sch     lang=cpp arch=impulsearch.cpp FAUSTOPTIONS="-I dsp -double -sch"
+
+#########################################################################
+# automatic github action test
+github_action:
+	$(MAKE) -f Make.rust outdir=rust/inpl CARGOOPTIONS="" FAUSTOPTIONS="-I ../../libraries/ -double -inpl -rnt -a archs/rust/architecture_inpl.rs"
+	$(MAKE) -f Make.rust outdir=rust/no CARGOOPTIONS="" FAUSTOPTIONS="-I ../../libraries/ -double -a archs/rust/architecture_trait.rs"
+	$(MAKE) -f Make.gcc outdir=cpp/double lang=cpp arch=impulsearch.cpp FAUSTOPTIONS="-I ../../libraries/ -I dsp -double"
 
 #########################################################################
 # c++ and c backends
@@ -286,6 +296,7 @@ wast:
 llvm:
 	export FAUST_OPT=FAUST_LLVM_NO_FM; \
 	$(MAKE) -f Make.llvm outdir=llvm/double               FAUSTOPTIONS="-I dsp"
+	$(MAKE) -f Make.llvm outdir=llvm/double/it            FAUSTOPTIONS="-I dsp -it"
 	$(MAKE) -f Make.llvm outdir=llvm/double/ftz1          FAUSTOPTIONS="-I dsp -ftz 1"
 	$(MAKE) -f Make.llvm outdir=llvm/double/ftz2          FAUSTOPTIONS="-I dsp -ftz 2"
 	$(MAKE) -f Make.llvm outdir=llvm/double/ct            FAUSTOPTIONS="-I dsp -ct 0"
@@ -308,6 +319,7 @@ llvm:
 #########################################################################
 # llvm backend in object code mode
 llvm1:
+	export FAUST_OPT=FAUST_LLVM_NO_FM; \
 	$(MAKE) -f Make.llvm1 outdir=llvm1/double               FAUSTOPTIONS="-I dsp -double"
 	$(MAKE) -f Make.llvm1 outdir=llvm1/double/inpl          FAUSTOPTIONS="-I dsp -double -inpl"
 	$(MAKE) -f Make.llvm1 outdir=llvm1/double/dlt0          FAUSTOPTIONS="-I dsp -double -dlt 0"
@@ -322,6 +334,12 @@ llvm1:
 	$(MAKE) -f Make.llvm1 outdir=llvm1/double/vec/g         FAUSTOPTIONS="-I dsp -double -vec -lv 1 -g"
 	$(MAKE) -f Make.llvm1 outdir=llvm1/double/vec/gfun      FAUSTOPTIONS="-I dsp -double -vec -lv 1 -g -fun"
 	#$(MAKE) -f Make.llvm1 outdir=llvm1/double/sch          FAUSTOPTIONS="-I dsp -sch"
+
+
+#########################################################################
+# signal interpreter
+signal:
+	$(MAKE) -f Make.signal outdir=signal/double              FAUSTOPTIONS="-I dsp"
 
 #########################################################################
 # interp backend
@@ -360,13 +378,15 @@ interp1:
 #########################################################################
 # Rust backend
 rust:
-	$(MAKE) -f Make.rust FAUSTOPTIONS="-I dsp -double"
-	rm -rf ir/rust
-	$(MAKE) -f Make.rust FAUSTOPTIONS="-I dsp -double -fp"
-	rm -rf ir/rust
-	$(MAKE) -f Make.rust FAUSTOPTIONS="-I dsp -double -vec -vs 4"
-	rm -rf ir/rust
-	$(MAKE) -f Make.rust FAUSTOPTIONS="-I dsp -double -vec -vs 32"
+	$(MAKE) -f Make.rust outdir=rust/inpl CARGOOPTIONS="" FAUSTOPTIONS="-I dsp -double -inpl -rnt -a archs/rust/architecture_inpl.rs"
+	$(MAKE) -f Make.rust outdir=rust/osec CARGOOPTIONS="" FAUSTOPTIONS="-I dsp -double -os -ec -rnt -a archs/rust/architecture_osecrnt.rs"
+	$(MAKE) -f Make.rust outdir=rust/os CARGOOPTIONS="" FAUSTOPTIONS="-I dsp -double -os -rnt -a archs/rust/architecture_osrnt.rs"
+	$(MAKE) -f Make.rust outdir=rust/cm CARGOOPTIONS="" FAUSTOPTIONS="-I dsp -double -cm -a archs/rust/architecture_cm.rs"
+	$(MAKE) -f Make.rust outdir=rust/ecrnt CARGOOPTIONS="" FAUSTOPTIONS="-I dsp -double -ec -rnt -a archs/rust/architecture_ecrnt.rs"
+	$(MAKE) -f Make.rust outdir=rust/no CARGOOPTIONS="" FAUSTOPTIONS="-I dsp -double -a archs/rust/architecture_trait.rs"
+	$(MAKE) -f Make.rust outdir=rust/fp FAUSTOPTIONS="-I dsp -double -fp -a archs/rust/architecture_trait.rs"
+	$(MAKE) -f Make.rust outdir=rust/vec4 CARGOOPTIONS="" FAUSTOPTIONS="-I dsp -double -vec -vs 4 -a archs/rust/architecture_trait.rs"
+	$(MAKE) -f Make.rust outdir=rust/vec32 FAUSTOPTIONS="-I dsp -double -vec -vs 32 -a archs/rust/architecture_trait.rs"
 
 #########################################################################
 # Cmajor backend
@@ -414,7 +434,7 @@ reference:
 
 reference-box:
 	cd reference && rm -f *.box
-	export FAUST_DEBUG=FAUST_DTREE; $(MAKE) -f Make.ref reference-box FAUSTOPTIONS="-I dsp"
+	 $(MAKE) -f Make.ref reference-box FAUSTOPTIONS="-I dsp"
 	
 reference-signal-wn:
 	cd reference && rm -f *.sig
@@ -422,46 +442,45 @@ reference-signal-wn:
 
 reference-signal:
 	cd reference && rm -f *.sig
-	export FAUST_DEBUG=FAUST_DTREE; $(MAKE) -f Make.ref reference-signal FAUSTOPTIONS="-I dsp"
+	$(MAKE) -f Make.ref reference-signal FAUSTOPTIONS="-I dsp"
 
 reference-type:
 	cd reference && rm -f *.type
-	export FAUST_DEBUG=FAUST_DTREE; $(MAKE) -f Make.ref reference-type FAUSTOPTIONS="-I dsp"
+	$(MAKE) -f Make.ref reference-type FAUSTOPTIONS="-I dsp"
 	
 reference-fir:
 	cd reference && rm -f *.fir
-	export FAUST_DEBUG=FAUST_DTREE; $(MAKE) -f Make.ref reference-fir FAUSTOPTIONS="-I dsp"
+	$(MAKE) -f Make.ref reference-fir FAUSTOPTIONS="-I dsp"
 
 reference-cpp:
 	cd reference && rm -f *.cpp1
-	export FAUST_DEBUG=FAUST_DTREE; $(MAKE) -f Make.ref reference-cpp FAUSTOPTIONS="-I dsp"
+	$(MAKE) -f Make.ref reference-cpp FAUSTOPTIONS="-I dsp"
 
-tools: filesCompare impulsellvm impulseinterp impulseinterp1 
+tools: filesCompare impulsellvm impulseinterp impulseinterp1 impulsesignal
 
 clean:
-	rm -f filesCompare impulsellvm impulseinterp impulseinterp1
+	rm -f filesCompare impulsellvm impulseinterp impulseinterp1 impulsesignal
 
 #########################################################################
 # Testing Box, Signal, Type and C++ creation steps
 
 test-box:
-	export FAUST_DEBUG=FAUST_DTREE; cd dsp && ./box-script *.dsp
+	cd dsp && ./box-script *.dsp
 
 test-signal-wn:
 	export FAUST_OPT=FAUST_SIG_NO_NORM; cd dsp && ./sig-script *.dsp
 	
 test-signal:
-	export FAUST_DEBUG=FAUST_DTREE; cd dsp && ./sig-script *.dsp
+	cd dsp && ./sig-script *.dsp
 
 test-type:
-	export FAUST_DEBUG=FAUST_DTREE; cd dsp && ./type-script *.dsp
+	 cd dsp && ./type-script *.dsp
 
 test-fir:
-	export FAUST_DEBUG=FAUST_DTREE; cd dsp && ./fir-script *.dsp
+	cd dsp && ./fir-script *.dsp
 
 test-cpp:
-	export FAUST_DEBUG=FAUST_DTREE; cd dsp && ./cpp-script *.dsp
-
+	cd dsp && ./cpp-script *.dsp
 
 #########################################################################
 # Benchmark using faustbench-llvm and faustbench
@@ -492,6 +511,9 @@ impulseinterp2: $(SRCDIR)/impulseinterp1.cpp ./archs/controlTools.h $(LIB)
 
 impulsellvm: $(SRCDIR)/impulsellvm.cpp ./archs/controlTools.h $(LIB)
 	$(CXX) $(TOOLSOPTIONS) -L/opt/local/lib -I/usr/local/include/ap_fixed -Iarchs $(SRCDIR)/impulsellvm.cpp $(LIB) $(LLVM_LIB) $(WINSOCK) -o impulsellvm
+
+impulsesignal: $(SRCDIR)/impulsesignal.cpp ./archs/controlTools.h $(LIB)
+	$(CXX) $(TOOLSOPTIONS) -L/opt/local/lib -I/usr/local/include/ap_fixed -Iarchs $(SRCDIR)/impulsesignal.cpp $(LIB) $(LLVM_LIB) $(WINSOCK) -o impulsesignal
 
 #########################################################################
 # rules for mute tests

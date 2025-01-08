@@ -28,6 +28,7 @@
 #include "instructions_compiler.hh"
 #include "instructions_compiler1.hh"
 #include "instructions_compiler_jax.hh"
+#include "interpreter_code_container.hh"
 #include "normalform.hh"
 #include "prim2.hh"
 #include "recursivness.hh"
@@ -95,7 +96,7 @@ Tree InstructionsCompiler::prepare(Tree LS)
         cout << ppsig(L1) << endl;
         throw faustexception("Dump normal form finished...\n");
     } else if (gGlobal->gDumpNorm == 1) {
-        ppsigShared(L1, cout, true);
+        ppsigShared(L1, cout, false);
         throw faustexception("Dump shared normal form finished...\n");
     } else if (gGlobal->gDumpNorm == 2) {
         // Print signal tree type
@@ -241,7 +242,7 @@ ValueInst* InstructionsCompiler::or2code(Tree cs)
 ValueInst* InstructionsCompiler::getConditionCode(Tree sig)
 {
     Tree cc = fConditionProperty[sig];
-    if ((cc != 0) && (cc != gGlobal->nil)) {
+    if ((cc != nullptr) && (cc != gGlobal->nil)) {
         return CND2CODE(cc);
     } else {
         return IB::genNullValueInst();
@@ -263,7 +264,7 @@ void InstructionsCompiler::conditionStatistics(Tree l)
 
 void InstructionsCompiler::conditionStatistics(Tree l)
 {
-    map<Tree, int>
+    map<Tree, int, CTreeComparator>
         fConditionStatistics;  // used with the new X,Y:enable --> sigEnable(X*Y,Y != 0) primitive
     for (const auto& p : fConditionProperty) {
         for (Tree lc = p.second; !isNil(lc); lc = tl(lc)) {
@@ -429,6 +430,9 @@ CodeContainer* InstructionsCompiler::signal2Container(const string& name, Tree s
     } else if (gGlobal->gOutputLang == "jax") {
         InstructionsCompilerJAX C(container);
         C.compileSingleSignal(sig);
+    } else if (gGlobal->gOutputLang == "interp") {
+        InterpreterInstructionsCompiler C(container);
+        C.compileSingleSignal(sig);
     } else {
         // Special compiler for -fx mode
         if (gGlobal->gFloatSize == 4) {
@@ -508,10 +512,12 @@ void InstructionsCompiler::compileMultiSignal(Tree L)
     if (!gGlobal->gOpenCLSwitch && !gGlobal->gCUDASwitch) {  // HACK
 
         // Input declarations
-        if (gGlobal->gOutputLang == "rust") {
+        if (gGlobal->gOutputLang == "rust" && !gGlobal->gInPlace) {
             // special handling for Rust backend
             pushComputeBlockMethod(IB::genDeclareBufferIterators(
                 "*input", "inputs", fContainer->inputs(), type, false));
+        } else if (gGlobal->gOutputLang == "rust" && gGlobal->gInPlace) {
+            // Nothing...
         } else if (gGlobal->gOutputLang == "julia") {
             // special handling Julia backend
             pushComputeBlockMethod(IB::genDeclareBufferIterators(
@@ -536,10 +542,14 @@ void InstructionsCompiler::compileMultiSignal(Tree L)
         }
 
         // Output declarations
-        if (gGlobal->gOutputLang == "rust") {
+        if (gGlobal->gOutputLang == "rust" && !gGlobal->gInPlace) {
             // special handling for Rust backend
             pushComputeBlockMethod(IB::genDeclareBufferIterators(
                 "*output", "outputs", fContainer->outputs(), type, true));
+        } else if (gGlobal->gOutputLang == "rust" && gGlobal->gInPlace) {
+            // TODO: what if there are more inputs than outputs?
+            int ios = max(fContainer->outputs(), fContainer->inputs());
+            pushComputeBlockMethod(IB::genDeclareBufferIterators("*io", "ios", ios, type, true));
         } else if (gGlobal->gOutputLang == "julia") {
             // special handling for Julia backend
             pushComputeBlockMethod(IB::genDeclareBufferIterators(
@@ -577,8 +587,19 @@ void InstructionsCompiler::compileMultiSignal(Tree L)
         // HACK for Rust backend
         string name;
         if (gGlobal->gOutputLang == "rust") {
-            name = subst("*output$0", T(index));
-            pushComputeDSPMethod(IB::genStoreStackVar(name, res));
+            if (!gGlobal->gInPlace) {
+                name = subst("*output$0", T(index));
+            } else {
+                name = subst("*io$0", T(index));
+            }
+            if (gGlobal->gComputeMix) {
+                // take the cpp code and remove the the loop
+                ValueInst* res1 = IB::genAdd(res, IB::genLoadStackVar(name));
+                pushComputeDSPMethod(IB::genStoreStackVar(name, res1));
+            } else {
+                pushComputeDSPMethod(IB::genStoreStackVar(name, res));
+            }
+
         } else if (gGlobal->gOutputLang == "jax") {
             res               = CS(sig);
             string result_var = "_result" + to_string(index);
@@ -888,7 +909,8 @@ ValueInst* InstructionsCompiler::generateFVar(Tree sig, Tree type, const string&
 {
     // Check access (handling 'fFullCount' as a special case)
     if ((name != fFullCount && !gGlobal->gAllowForeignVar) ||
-        (name == fFullCount && (gGlobal->gOneSample || gGlobal->gOneSampleControl))) {
+        (name == fFullCount &&
+         (gGlobal->gOneSample || gGlobal->gOneSampleControl || gGlobal->gExtControl))) {
         stringstream error;
         error << "ERROR : accessing foreign variable '" << name << "'"
               << " is not allowed in this compilation mode" << endl;
@@ -915,8 +937,10 @@ ValueInst* InstructionsCompiler::generateInput(Tree sig, int idx)
     // Cast to internal float
     ValueInst* res;
     // HACK for Rust backend
-    if (gGlobal->gOutputLang == "rust") {
+    if (gGlobal->gOutputLang == "rust" && !gGlobal->gInPlace) {
         res = IB::genLoadStackVar(subst("*input$0", T(idx)));
+    } else if (gGlobal->gOutputLang == "rust" && gGlobal->gInPlace) {
+        res = IB::genLoadStackVar(subst("*io$0", T(idx)));
     } else if (gGlobal->gOutputLang == "jax") {
         res = IB::genLoadArrayStackVar("inputs", IB::genInt32NumInst(idx));
     } else if (gGlobal->gOneSampleControl) {

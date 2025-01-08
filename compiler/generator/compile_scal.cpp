@@ -142,7 +142,12 @@ Tree ScalarCompiler::prepare(Tree LS)
 
     if (gGlobal->gDrawSignals) {
         if (gGlobal->gDrawRetiming) {
-            Tree     L3 = sigRetiming(L2);
+            startTiming("retiming");
+            Tree L3 = sigRetiming(L2);
+            endTiming("retiming");
+            startTiming("retimed type annotation");
+            typeAnnotation(L3, true);
+            endTiming("retimed type annotation");
             ofstream dotfile(subst("$0-rtsig.dot", gGlobal->makeDrawPath()).c_str());
             sigToGraph(L3, dotfile);
         }
@@ -245,7 +250,7 @@ string ScalarCompiler::or2code(Tree cs)
 string ScalarCompiler::getConditionCode(Tree sig)
 {
     Tree cc = fConditionProperty[sig];
-    if ((cc != 0) && (cc != gGlobal->nil)) {
+    if ((cc != nullptr) && (cc != gGlobal->nil)) {
         return CND2CODE(cc);
     } else {
         return "";
@@ -268,7 +273,7 @@ void ScalarCompiler::conditionStatistics(Tree l)
 
 void ScalarCompiler::conditionStatistics(Tree l)
 {
-    map<Tree, int>
+    map<Tree, int, CTreeComparator>
         fConditionStatistics;  // used with the new X,Y:enable --> sigEnable(X*Y,Y>0) primitive
     for (const auto& p : fConditionProperty) {
         for (Tree lc = p.second; !isNil(lc); lc = tl(lc)) {

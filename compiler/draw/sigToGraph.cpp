@@ -22,6 +22,7 @@
 #include <stdio.h>
 
 #include <iostream>
+#include <regex>
 #include <set>
 #include <sstream>
 #include <string>
@@ -37,7 +38,7 @@
 
 using namespace std;
 
-static void   recdraw(Tree sig, set<Tree>& drawn, ostream& fout);
+static void   recdraw(Tree sig, set<Tree, CTreeComparator>& drawn, ostream& fout);
 static string nodeattr(Type t);
 static string edgeattr(Type t);
 static string sigLabel(Tree sig);
@@ -47,7 +48,7 @@ static string sigLabel(Tree sig);
  */
 void sigToGraph(Tree L, ostream& fout)
 {
-    set<Tree> alreadyDrawn;
+    set<Tree, CTreeComparator> alreadyDrawn;
 
     fout << "strict digraph loopgraph {\n"
          << "    rankdir=LR; node [fontsize=10];" << endl;
@@ -69,7 +70,7 @@ void sigToGraph(Tree L, ostream& fout)
 /**
  * Draw recursively a signal
  */
-static void recdraw(Tree sig, set<Tree>& drawn, ostream& fout)
+static void recdraw(Tree sig, set<Tree, CTreeComparator>& drawn, ostream& fout)
 {
     // cerr << ++gGlobal->TABBER << "ENTER REC DRAW OF " << sig << "$" << *sig << endl;
     tvec subsig;
@@ -297,5 +298,5 @@ static string sigLabel(Tree sig)
         throw faustexception(error.str());
     }
 
-    return fout.str();
+    return std::regex_replace(fout.str(), std::regex("\""), "\\\"");
 }
