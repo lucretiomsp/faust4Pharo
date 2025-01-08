@@ -66,8 +66,25 @@ architecture section is not modified.
 #include "faust/gui/SoundUI.h"
 #endif
 
+// Always include this file, otherwise -nvoices only mode does not compile....
+#include "faust/gui/MidiUI.h"
+#ifdef MIDICTRL
+#include "faust/midi/rt-midi.h"
+#include "faust/midi/RtMidi.cpp"
+#endif
+
+#include "faust/dsp/poly-dsp.h"
 using namespace std;
 
+// midi Impkementation
+list<GUI*> GUI::fGuiList;
+ztimedmap GUI::gTimedZoneMap;
+
+MidiUI* midi_interface = nullptr;
+rt_midi fMidiHandler("MIDI");
+dsp * monofDSP;
+dsp*  finalDSP;
+mydsp_poly* fPolyDSP;
 // Audio renderer types
 
 enum RendererType {
@@ -91,9 +108,11 @@ struct dsp_aux {
 #if SOUNDFILE
     SoundUI*    fSoundInterface;
 #endif
-    dsp*        fDSP;
+    
     audio*      fDriver;
     APIUI       fParams;
+    string      fJSONMono;
+    string      fJSONPoly;
     string      fJSON;
     const char* fNameApp;
     
@@ -110,7 +129,7 @@ struct dsp_aux {
         fFactory = createInterpreterDSPFactoryFromString(name_app, dsp_content, argc, argv, gLastError);
     #endif
         if (fFactory) {
-            fDSP = fFactory->createDSPInstance();
+            finalDSP = fFactory->createDSPInstance();
             createJSON(name_app);
         } else {
             throw std::bad_alloc();
@@ -127,12 +146,44 @@ struct dsp_aux {
         fFactory = createInterpreterDSPFactoryFromBoxes(name_app, box, argc, argv, gLastError);
     #endif
         if (fFactory) {
-            fDSP = fFactory->createDSPInstance();
+            monofDSP = fFactory->createDSPInstance();
+
+            finalDSP = monofDSP;
+            fPolyDSP = nullptr;
             createJSON(name_app);
+            
         } else {
             throw std::bad_alloc();
         }
     }
+    
+    // ##################################################################
+    // for MIDI
+    dsp_aux(const char* name_app, Box box, int argc, const char* argv[], const char* target, int opt_level, bool isMIDI)
+    : fDriver(nullptr)
+    {
+        fNameApp = name_app;
+    #ifdef LLVM_DSP
+        fFactory = createDSPFactoryFromBoxes(name_app, box, argc, argv, target, gLastError, opt_level);
+    #elif INTERP_DSP
+        fFactory = createInterpreterDSPFactoryFromBoxes(name_app, box, argc, argv, gLastError);
+    #endif
+        if (fFactory) {
+            monofDSP = fFactory->createDSPInstance();
+           
+            
+            
+            // experimental! MIDI POLY
+            fPolyDSP = new mydsp_poly(monofDSP, 8, true, true);
+            finalDSP = fPolyDSP;
+            createJSON(name_app);
+            
+        } else {
+            throw std::bad_alloc();
+        }
+    }
+    
+  // ##################################################################
     
     dsp_aux(const char* name_app, Signal* signals_aux, int argc, const char* argv[], const char* target, int opt_level)
     : fDriver(nullptr)
@@ -150,7 +201,7 @@ struct dsp_aux {
         fFactory = createInterpreterDSPFactoryFromSignals(name_app, signals, argc, argv, gLastError);
     #endif
         if (fFactory) {
-            fDSP = fFactory->createDSPInstance();
+            finalDSP = fFactory->createDSPInstance();
             createJSON(name_app);
         } else {
             throw std::bad_alloc();
@@ -159,7 +210,7 @@ struct dsp_aux {
   
     dsp_aux() : fDriver(nullptr)
     {
-        fDSP = nullptr;
+        finalDSP = nullptr;
         createJSON("dummy_dsp");
     }
 
@@ -169,7 +220,7 @@ struct dsp_aux {
             fDriver->stop();
             delete fDriver;
         }
-        delete fDSP;
+        delete finalDSP;
     #if SOUNDFILE
         delete fSoundInterface;
     #endif
@@ -182,12 +233,28 @@ struct dsp_aux {
 
     void createJSON(const string& name_app)
     {
-        // JSON creation
-        JSONUI json(name_app, "", fDSP->getNumInputs(), fDSP->getNumOutputs());
-        fDSP->buildUserInterface(&json);
-        fDSP->metadata(&json);
-        fJSON = json.JSON();
+        // JSON creation for mono DSP
+        JSONUI jsonMono(name_app, "", monofDSP->getNumInputs(), monofDSP->getNumOutputs());
+        monofDSP->buildUserInterface(&jsonMono);
+        monofDSP->metadata(&jsonMono);
+
+        // Check for polyphonic DSP
+        if (fPolyDSP != nullptr)
+        {
+            JSONUI jsonPoly(name_app, "", fPolyDSP->getNumInputs(), fPolyDSP->getNumOutputs());
+            fPolyDSP->buildUserInterface(&jsonPoly); // Corrected: Using jsonPoly for fPolyDSP
+            fPolyDSP->metadata(&jsonPoly);
+
+            // Combine JSON from both mono and poly DSPs
+            fJSON = jsonMono.JSON() + jsonPoly.JSON();  // Corrected: Using jsonMono and jsonPoly objects
+        }
+        else
+        {
+            // Only mono DSP
+            fJSON = jsonMono.JSON();
+        }
     }
+
 
     bool init(RendererType renderer, int sr, int bsize)
     {
@@ -240,14 +307,45 @@ struct dsp_aux {
         };
 
         if (fDriver) {
-            fDriver->init(fNameApp, fDSP);
-            fDSP->buildUserInterface(&fParams);
+            
+            fDriver->init(fNameApp, finalDSP);
+           
+            // MIDI SUPPORT
+            if (fPolyDSP != nullptr )
+            {
+            
+            bool midi_sync = false;
+            bool midi = true;
+            int nvoices = 8;
+            MidiMeta::analyse(finalDSP, midi, midi_sync, nvoices);
+          
+            // Retrieving DSP object name
+            struct MyMeta : public Meta
+                {
+                    std::string fName;
+                    void declare(const char* key, const char* value)
+                        {
+                            if (strcmp(key, "name") == 0) fName = value;
+                        }
+                          MyMeta():fName("Dummy"){}
+                      };
+            MyMeta meta;
+            finalDSP->metadata(&meta);
+            fMidiHandler.setName(meta.fName);
+            midi_interface = new MidiUI(&fMidiHandler);
+            
+            finalDSP->buildUserInterface(midi_interface);
+            }
+            finalDSP->buildUserInterface(&fParams);
+   
+            
+            
     #if SOUNDFILE
             // Use bundle path and "soundfiles" metadata URLs
-            vector<string> base_url = SoundUI::getSoundfilePaths(fDSP);
+            vector<string> base_url = SoundUI::getSoundfilePaths(finalDSP);
             base_url.push_back(SoundUI::getBinaryPath());
             fSoundInterface = new SoundUI(base_url);
-            fDSP->buildUserInterface(fSoundInterface);
+            finalDSP->buildUserInterface(fSoundInterface);
     #endif
             return true;
         } else {
@@ -255,8 +353,8 @@ struct dsp_aux {
         }
     }
 
-    int getNumInputs() { return fDSP->getNumInputs(); }
-    int getNumOutputs() { return fDSP->getNumOutputs(); }
+    int getNumInputs() { return finalDSP->getNumInputs(); }
+    int getNumOutputs() { return finalDSP->getNumOutputs(); }
 };
 
 #if JACK_DRIVER
@@ -390,15 +488,29 @@ dsp* createDsp(const char* name_app, const char* dsp_content, int argc, const ch
     }
 }
     
-dsp* createDspFromBoxes(const char* name_app, Box box, int argc, const char* argv[], const char* target, int opt_level)
+dsp* createDspFromBoxes(const char* name_app, Box box, int argc, const char* argv[], const char* target, int opt_level, bool isMIDI)
 {
+    
+    
     try {
-        return reinterpret_cast<dsp*>(new dsp_aux(name_app, box, argc, argv, target, opt_level));
+        if (isMIDI) {
+            // Create DSP with MIDI-specific constructor and cast
+            std::cout << "POLY DSP !";
+            return reinterpret_cast<dsp*>(new dsp_aux(name_app, box, argc, argv, target, opt_level, isMIDI));
+        } else {
+            // Create DSP with non-MIDI constructor and cast
+            std::cout << "MERDA DSP";
+            return reinterpret_cast<dsp*>(new dsp_aux(name_app, box, argc, argv, target, opt_level));
+        }
+    } catch (const std::exception& e) {
+        cerr << "Cannot create DSP: " << e.what() << "\n"; // Log specific exception details
     } catch (...) {
-        cerr << "Cannot create DSP\n";
-        return nullptr;
+        cerr << "Cannot create DSP: Unknown error\n"; // Catch all other exceptions
     }
+    return nullptr; // Return nullptr if creation fails
+  
 }
+
     
 dsp* createDspFromSignals(const char* name_app, Signal* signals, int argc, const char* argv[], const char* target, int opt_level)
 {
@@ -428,12 +540,16 @@ void destroyDsp(dsp* dsp_ext)
 bool startDsp(dsp* dsp_ext)
 {
     dsp_aux* dsp = reinterpret_cast<dsp_aux*>(dsp_ext);
+        if (fPolyDSP != nullptr)
+        midi_interface->run();
     return (dsp->fDriver) ? dsp->fDriver->start() : false;
 }
 
 void stopDsp(dsp* dsp_ext)
 {
     dsp_aux* dsp = reinterpret_cast<dsp_aux*>(dsp_ext);
+        if (fPolyDSP != nullptr)
+        midi_interface->stop();
     if (dsp->fDriver) dsp->fDriver->stop();
 }
 
@@ -488,6 +604,7 @@ FAUSTFLOAT getParamValueDsp(dsp* dsp_ext, int p)
 }
 void setParamValueDsp(dsp* dsp_ext, int p, FAUSTFLOAT v)
 {
+    GUI::updateAllGuis();
     return reinterpret_cast<dsp_aux*>(dsp_ext)->fParams.setParamValue(p, v);
 }
 
@@ -550,6 +667,103 @@ void getGyrConverterDsp(dsp* dsp_ext, int p, int* gyr, int* curve, FAUSTFLOAT* a
     *amin  = FAUSTFLOAT(amid_tmp);
     *amin  = FAUSTFLOAT(amax_tmp);
 }
+
+/// MIDI response
+/*
+        * keyOn(pitch, velocity)
+        * Instantiates a new polyphonic voice where velocity
+        * and pitch are MIDI numbers (0-127). keyOn can only
+        * be used if nvoices > 0. keyOn will return 0 if the
+        * object is not polyphonic and the allocated voice otherwise.
+        */
+       MapUI* keyOn(int pitch, int velocity)
+       {
+           if (fPolyDSP) {
+               return fPolyDSP->keyOn(0, pitch, velocity); // MapUI* passed to Java as an integer
+           } else {
+               return 0;
+           }
+       }
+
+       /*
+        * keyOff(pitch)
+        * De-instantiates a polyphonic voice where pitch is the
+        * MIDI number of the note (0-127). keyOff can only be
+        * used if nvoices > 0. keyOff will return 0 if the
+        * object is not polyphonic and 1 otherwise.
+        */
+       int keyOff(int pitch, int velocity = 0)
+       {
+           if (fPolyDSP) {
+               fPolyDSP->keyOff(0, pitch, velocity);
+               return 1;
+           } else {
+               return 0;
+           }
+       }
+
+       /*
+        * newVoice()
+        * Instantiate a new voice and returns the corresponding mapUI.
+        */
+       MapUI* newVoice()
+       {
+           if (fPolyDSP) {
+               return fPolyDSP->newVoice();
+           } else {
+               return 0;
+           }
+       }
+
+       /*
+        * deleteVoice(MapUI* voice)
+        * Delete a voice based on its MapUI*.
+        */
+       int deleteVoice(MapUI* voice)
+       {
+           if (fPolyDSP) {
+               fPolyDSP->deleteVoice(voice);
+               return 1;
+           } else {
+               return 0;
+           }
+       }
+
+/// #######################
+       /*
+        * deleteVoice(uintptr_t voice)
+        * Delete a voice based on its MapUI* casted as a uintptr_t.
+        
+       int deleteVoice(uintptr_t voice)
+       {
+           return deleteVoice(reinterpret_cast<MapUI*>(voice));
+       }
+    */
+
+       /*
+        * allNotesOff()
+        * Terminates all the active voices, gently (with release when hard = false or immediately when hard = true)
+        */
+       void allNotesOff(bool hard = false)
+       {
+           if (fPolyDSP) {
+               fPolyDSP->allNotesOff(hard);
+           }
+       }
+   
+       /*
+        * Propagate MIDI data to the Faust object.
+        */
+       void propagateMidi(int count, double time, int type, int channel, int data1, int data2)
+       {
+           if (count == 3) fMidiHandler.handleData2(time, type, channel, data1, data2);
+           else if (count == 2) fMidiHandler.handleData1(time, type, channel, data1);
+           else if (count == 1) fMidiHandler.handleSync(time, type);
+           // In POLY mode, update all voices
+           GUI::updateAllGuis();
+       }
+
+
 
 #ifdef __cplusplus
 }

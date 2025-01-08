@@ -122,11 +122,12 @@ extern "C" {
      *                 using an empty string takes the current machine settings,
      *                 and i386-apple-macosx10.6.0:generic kind of syntax for a generic processor
      * @param opt_level - LLVM IR to IR optimization level (from -1 to 4, -1 means 'maximum possible value'),
+     * @isMIDI = create a MIDI/poly DSP
      * not used if compiled with INTERP_DSP mode.
      *
      * @return A pointer to the created DSP object on success, otherwise a null pointer. Use getLastError to access the error.
      */
-    dsp* createDspFromBoxes(const char* name_app, Box box, int argc, const char* argv[], const char* target, int opt_level);
+    dsp* createDspFromBoxes(const char* name_app, Box box, int argc, const char* argv[], const char* target, int opt_level, bool isMIDI);
     
     /**
      * @brief Create a DSP object.
@@ -146,6 +147,8 @@ extern "C" {
      *
      * @return A pointer to the created DSP object on success, otherwise a null pointer. Use getLastError to access the error.
      */
+
+
     dsp* createDspFromSignals(const char* name_app, Signal* signals, int argc, const char* argv[], const char* target, int opt_level);
     
     /**
@@ -446,6 +449,19 @@ extern "C" {
      */
     void getGyrConverterDsp(dsp* dsp_ext, int p, int* gyr, int* curve, FAUSTFLOAT* amin, FAUSTFLOAT* amid, FAUSTFLOAT* amax);
     
+
+
+
+// MIDI CONTROL
+   uintptr_t keyOn(void* dsp, int pitch, int velocity) { return (uintptr_t)reinterpret_cast<FaustPolyEngine*>(dsp)->keyOn(pitch, velocity); }
+   
+   int keyOff(void* dsp, int pitch) { return reinterpret_cast<FaustPolyEngine*>(dsp)->keyOff(pitch); }
+   
+   void propagateMidi(void* dsp, int count, double time, int type, int channel, int data1, int data2)
+   {
+     dsp->propagateMidi(count, time, type, channel, data1, data2);
+   }
+
 #ifdef __cplusplus
 }
 #endif
