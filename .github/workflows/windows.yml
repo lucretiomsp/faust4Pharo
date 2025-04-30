@@ -1,4 +1,4 @@
-name: Windows Build
+name: Windows Faust Build
 
 on:
   workflow_dispatch:
@@ -6,26 +6,33 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    
     steps:
     - uses: actions/checkout@v4
 
-    - name: Add MSBuild to PATH
+    - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v1
-  
-    - name: Get latest CMake and ninja
+
+    - name: Install CMake and Ninja
       uses: lukka/get-cmake@latest
 
-    - name: Build Faust
+    - name: Configure and Build Faust
       run: |
-        make -C build cmake BACKENDS=regular.cmake TARGETS=win-ci.cmake
-        make -C build
-        
+        mkdir build
+        cd build
+        cmake -G "Ninja" -C ../backends/all.cmake -C ../targets/all.cmake \
+          -DCMAKE_BUILD_TYPE=Release -DWORKLET=off -DINCLUDE_LLVM=OFF \
+          -DUSE_LLVM_CONFIG=ON -DLIBSDIR=lib -DBUILD_HTTP_STATIC=OFF ..
+        cmake --build . --config Release
+
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v3
       with:
-        name: faust-build-output
+        name: faust-binaries-${{ github.run_number }}
         path: |
           build/**/*.dll
           build/**/*.exe
           build/**/*.lib
+          build/**/*.a
+        retention-days: 7
         if-no-files-found: error
