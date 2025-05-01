@@ -28,3 +28,10 @@ jobs:
 
       - name: Build Faust
         run: |
+      
+      - name: Upload Faust Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+           name: faust-windows-build
+           path: build/
+  
