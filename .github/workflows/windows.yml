@@ -28,6 +28,8 @@ jobs:
 
       - name: Build Faust
         run: |
+            make -C build cmake BACKENDS=regular.cmake TARGETS=win-ci.cmake
+            make -C build
       
       - name: Upload Faust Artifacts
         uses: actions/upload-artifact@v4
