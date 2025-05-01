@@ -1,38 +1,30 @@
-name: Windows Faust Build
+name: Windows
 
 on:
+  push:
+    branches:
+      - '*'
+  pull_request:
+    branches:
+      - '*'
   workflow_dispatch:
+    inputs:
+      run-tests:
+        description: 'Run tests'
+        required: false
+        default: 'false'
 
 jobs:
   build:
     runs-on: windows-latest
-    
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v2
 
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v1
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v1
 
-    - name: Install CMake and Ninja
-      uses: lukka/get-cmake@latest
+      - name: Get latest CMake and Ninja
+        uses: lukka/get-cmake@latest
 
-    - name: Configure and Build Faust
-      run: |
-        mkdir build
-        cd build
-        cmake -G "Ninja" -C ../backends/all.cmake -C ../targets/all.cmake \
-          -DCMAKE_BUILD_TYPE=Release -DWORKLET=off -DINCLUDE_LLVM=OFF \
-          -DUSE_LLVM_CONFIG=ON -DLIBSDIR=lib -DBUILD_HTTP_STATIC=OFF ..
-        cmake --build . --config Release
-
-    - name: Upload Build Artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: faust-binaries-${{ github.run_number }}
-        path: |
-          build/**/*.dll
-          build/**/*.exe
-          build/**/*.lib
-          build/**/*.a
-        retention-days: 7
-        if-no-files-found: error
+      - name: Build Faust
+        run: |
