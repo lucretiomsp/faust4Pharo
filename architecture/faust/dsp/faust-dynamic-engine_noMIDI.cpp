@@ -415,6 +415,17 @@ const char* getLastError()
     return dsp_aux::gLastError.c_str();
 }
 
+float* getBuffer(dsp* dsp_ext) {
+    dsp_aux* dsp = reinterpret_cast<dsp_aux*>(dsp_ext);  
+
+       return dsp->fDriver->getBuffer();
+}
+
+int soloNumero()
+{
+    return 99999;
+}
+
 bool initDsp(dsp* dsp_ext, RendererType renderer, int sr, int bsize)
 {
     return reinterpret_cast<dsp_aux*>(dsp_ext)->init(renderer, sr, bsize);

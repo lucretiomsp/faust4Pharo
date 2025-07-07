@@ -445,6 +445,9 @@ extern "C" {
      * @param amax - pointer to store maximum value
      */
     void getGyrConverterDsp(dsp* dsp_ext, int p, int* gyr, int* curve, FAUSTFLOAT* amin, FAUSTFLOAT* amid, FAUSTFLOAT* amax);
+
+int soloNumero();
+float* getBuffer(dsp* dsp_ext);
     
 #ifdef __cplusplus
 }
