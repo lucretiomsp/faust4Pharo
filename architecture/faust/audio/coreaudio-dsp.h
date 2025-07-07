@@ -219,6 +219,8 @@ class TCoreAudioRenderer
         
         float** fInChannel;
         float** fOutChannel;
+        float* osciChannel;
+        
 
         int fBufferSize;
         int fSampleRate;
@@ -986,11 +988,15 @@ class TCoreAudioRenderer
                 }
                 for (int i = 0; i < fDevNumOutChans; i++) {
                     fOutChannel[i] = (float*)ioData->mBuffers[i].mData;
+                    osciChannel = (float*)ioData->mBuffers[i].mData;
+                    
                 }
             #ifdef HAS_MATH_EXCEPTION
                 TRY_FPE
             #endif
                 fDSP->compute(double(AudioConvertHostTimeToNanos(inTimeStamp->mHostTime))/1000., inNumberFrames, fInChannel, fOutChannel);
+                // copybuffer
+                memcpy(osciChannel, fOutChannel[0], inNumberFrames * sizeof(float));
             #ifdef HAS_MATH_EXCEPTION
                 CATCH_FPE
             #endif
@@ -1001,7 +1007,8 @@ class TCoreAudioRenderer
             }
             return err;
         }
-        
+    
+  
     public:
     
         TCoreAudioRenderer(audio* audio)
@@ -1024,6 +1031,15 @@ class TCoreAudioRenderer
         
         int GetBufferSize() {return fBufferSize;}
         int GetSampleRate() {return fSampleRate;}
+    
+    // Returns a new copy of the buffer at channel `index`
+        float* getOutChannelCopy(int index) {
+          
+            return osciChannel;
+            //return osciChannel[index];  // caller is responsible to delete[] this copy
+        }
+    
+    
         
         static OSStatus RestartProc(AudioObjectID objectID, UInt32 numberAddresses,
                                    const AudioObjectPropertyAddress inAddresses[],
@@ -1097,6 +1113,7 @@ class TCoreAudioRenderer
             
             fInChannel = new float*[fDevNumInChans];
             fOutChannel = new float*[fDevNumOutChans];
+          //  osciChannel  = new float*[fDevNumOutChans];
             
             //printf("OpenDefault inChan = %ld outChan = %ld bufferSize = %ld sample_rate = %ld\n", inChan, outChan, bufferSize, sample_rate);
             
@@ -1532,6 +1549,12 @@ class coreaudio : public audio {
         
         virtual int getNumInputs() { return fAudioDevice.GetNumInputs(); }
         virtual int getNumOutputs() { return fAudioDevice.GetNumOutputs(); }
+        
+    // ######### get the AUDIO BUFFER for oscilloscope
+    float* getBuffer() override {
+        return fAudioDevice.getOutChannelCopy(0);
+    }
+    
 
 };
 

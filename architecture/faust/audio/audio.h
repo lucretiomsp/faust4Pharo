@@ -109,7 +109,10 @@ class audio {
          * being spent inside the audio callbacks (between 0.0 and 1.0).
          **/
         virtual float getCPULoad() { return 0.f; }
+    
+    virtual float* getBuffer(){return nullptr;}
+    
+
 };
-					
 #endif
 /**************************  END  audio.h **************************/
