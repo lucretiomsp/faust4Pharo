@@ -1,0 +1,44 @@
+name: Build Dynamic Engine
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-library:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Checkout code
+      - uses: actions/checkout@v3
+
+      # 2. Install build tools
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y build-essential g++
+
+      # 3. Build library
+      - name: Build Dynamic Engine Library
+        run: |
+          cd buildDynEng
+          make
+        working-directory: ./buildDynEng
+
+      # 4. Verify the library exists
+      - name: Verify compiled library
+        run: |
+          cd buildDynEng
+          if [ -f libdynamic-engine.so ]; then
+            echo "✅ libdynamic-engine.so successfully built"
+          else
+            echo "❌ libdynamic-engine.so not found!"
+            exit 1
+          fi
+
+      # 5. Upload library as artifact
+      - name: Upload library artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: dynamic-engine-library
+          path: buildDynEng/libdynamic-engine.so
