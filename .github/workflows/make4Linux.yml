@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # 1. Checkout code
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       # 2. Install build tools
       - name: Install build tools
@@ -28,17 +28,16 @@ jobs:
       # 4. Verify the library exists
       - name: Verify compiled library
         run: |
-          cd buildDynEng
-          if [ -f libdynamic-engine.so ]; then
+          if [ -f buildDynEng/libdynamic-engine.so ]; then
             echo "✅ libdynamic-engine.so successfully built"
           else
             echo "❌ libdynamic-engine.so not found!"
             exit 1
           fi
 
-      # 5. Upload library as artifact
+      # 5. Upload library as artifact (updated to v4)
       - name: Upload library artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dynamic-engine-library
           path: buildDynEng/libdynamic-engine.so
