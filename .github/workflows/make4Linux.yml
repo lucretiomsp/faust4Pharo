@@ -20,15 +20,13 @@ jobs:
 
       # 3. Build library
       - name: Build Dynamic Engine Library
-        run: |
-          cd buildDynEng
-          make
-        working-directory: ./buildDynEng
+        working-directory: builDynEng
+        run: make
 
       # 4. Verify the library exists
       - name: Verify compiled library
         run: |
-          if [ -f buildDynEng/libdynamic-engine.so ]; then
+          if [ -f builDynEng/libdynamic-engine.so ]; then
             echo "✅ libdynamic-engine.so successfully built"
           else
             echo "❌ libdynamic-engine.so not found!"
@@ -40,4 +38,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dynamic-engine-library
-          path: buildDynEng/libdynamic-engine.so
+          path: builDynEng/libdynamic-engine.so
