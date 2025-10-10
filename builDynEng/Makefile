@@ -24,7 +24,8 @@ INC_FLAGS := -I$(PROJ_ROOT)/architecture \
              -I$(PROJ_ROOT)/architecture/faust/audio \
              -I$(PROJ_ROOT)/compiler/interpreter
 
-DEFINES := -DINTERP_DSP -DRTAUDIO_DRIVER -DSOUNDFILE -DDAISY
+# --- -DSOUNDFILE
+DEFINES := -DINTERP_DSP -DRTAUDIO_DRIVER  -DDAISY
 
 # ---- Build rule ----
 $(TARGET): $(SRC)
