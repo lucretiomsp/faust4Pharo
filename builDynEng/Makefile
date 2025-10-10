@@ -30,25 +30,13 @@ DEFINES := -DINTERP_DSP -DRTAUDIO_DRIVER -DSOUNDFILE -DDAISY
 $(TARGET): $(SRC)
 	@echo "🔧 Building $(TARGET)..."
 	@mkdir -p $(dir $(TARGET))
-	$(CXX) $(CXXFLAGS) $(INC_FLAGS) $(DEFINES) -shared -o $@ $< $(LIBS) $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) $(INC_FLAGS) $(DEFINES) -shared -o $@ $< -L$(BUILD_DIR) -Wl,-rpath,'$$ORIGIN' $(LIBS)
 
-	@echo "🔍 Setting RPATH = \$ORIGIN for all libraries in $(BUILD_DIR)..."
-	@for f in $(BUILD_DIR)/*.so; do \
-		echo "  → Patching $$f"; \
-		patchelf --set-rpath '$$ORIGIN' $$f; \
-	done
+	@echo "🔗 Ensuring proper symlinks for RtAudio..."
+	@cd $(BUILD_DIR) && \
+	if [ -f librtaudio.so.6.0.0 ]; then \
+		ln -sf librtaudio.so.6.0.0 librtaudio.so.6; \
+		ln -sf librtaudio.so.6 librtaudio.so; \
+	fi
 
-	@echo "✅ Build completed: $(TARGET)"
-
-# ---- Dependency check ----
-check:
-	@echo "🔎 Checking RPATH for $(TARGET)..."
-	@readelf -d $(TARGET) | grep -E "RPATH|RUNPATH" || echo "⚠️  No RPATH found!"
-	@echo "🔎 Verifying dependencies..."
-	@cd $(BUILD_DIR) && LD_LIBRARY_PATH=$(BUILD_DIR) ldd libdynamic-engine.so
-
-# ---- Clean rule ----
-clean:
-	@echo "🧹 Cleaning build artifacts..."
-	rm -f $(TARGET)
-	@echo "✅ Clean complete."
+	@echo "🔍 Setting RPATH = \$O
