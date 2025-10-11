@@ -25,8 +25,8 @@ INC_FLAGS := -I$(PROJ_ROOT)/architecture \
              -I$(PROJ_ROOT)/compiler/interpreter
 
 # --- -DSOUNDFILE
-DEFINES := -DINTERP_DSP -DRTAUDIO_DRIVER  -DDAISY
-
+# DEFINES := -DINTERP_DSP -DRTAUDIO_DRIVER  -DDAISY
+DEFINES := -DINTERP_DSP -DJACKAUDIO_DRIVER  -DDAISY
 # ---- Build rule ----
 $(TARGET): $(SRC)
 	@echo "🔧 Building $(TARGET)..."
