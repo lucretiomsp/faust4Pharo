@@ -12,7 +12,8 @@ CXXFLAGS := -std=c++11 -O3 -Wall -Wextra -Wno-unused-parameter -fPIC
 
 # ---- Linker setup ----
 LDFLAGS := -L$(BUILD_DIR) -Wl,-rpath,'$$ORIGIN'
-LIBS := -lfaust -lrtaudio
+# LIBS := -lfaust -lrtaudio
+LIBS := -lfaust -ljack
 TARGET := $(BUILD_DIR)/libdynamic-engine.so
 
 # ---- Source and includes ----
