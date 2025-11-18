@@ -10,19 +10,34 @@ on:
 jobs:
   build-library:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install build tools
-        run: sudo apt-get update && sudo apt-get install -y build-essential g++ patchelf
+      # Install all required build tools and audio libs
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            g++ \
+            git \
+            cmake \
+            patchelf \
+            libjack-jackd2-dev \
+            libpulse-dev \
+            libasound2-dev
 
+      # Build your dynamic engine
       - name: Build Dynamic Engine Library
         working-directory: builDynEng
         run: make
 
-      - name: List build output (diagnostic)
+      # Diagnostic: list output
+      - name: List build output
         run: ls -R librariesLinux
 
+      # Verify the library exists
       - name: Verify compiled library
         run: |
           if [ -f librariesLinux/libdynamic-engine.so ]; then
@@ -32,6 +47,7 @@ jobs:
             exit 1
           fi
 
+      # Upload the library as an artifact
       - name: Upload library artifact
         uses: actions/upload-artifact@v4
         with:
