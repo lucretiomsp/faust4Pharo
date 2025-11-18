@@ -1,6 +1,4 @@
-# ========= Dynamic Engine Build =========
-# Builds libdynamic-engine.so and ensures all linked libraries
-# resolve locally (using $ORIGIN for runtime search path)
+# ========= Dynamic Engine Build + Local RtAudio Build ==========
 
 # ---- Project structure ----
 PROJ_ROOT := ..
@@ -12,8 +10,8 @@ CXXFLAGS := -std=c++11 -O3 -Wall -Wextra -Wno-unused-parameter -fPIC
 
 # ---- Linker setup ----
 LDFLAGS := -L$(BUILD_DIR) -Wl,-rpath,'$$ORIGIN'
-# LIBS := -lfaust -lrtaudio
-LIBS := -lfaust -ljack
+LIBS := -lfaust -lrtaudio -ljack -lpulse -lasound
+
 TARGET := $(BUILD_DIR)/libdynamic-engine.so
 
 # ---- Source and includes ----
@@ -23,22 +21,70 @@ INC_FLAGS := -I$(PROJ_ROOT)/architecture \
              -I$(PROJ_ROOT)/architecture/faust \
              -I$(PROJ_ROOT)/architecture/faust/dsp \
              -I$(PROJ_ROOT)/architecture/faust/audio \
-             -I$(PROJ_ROOT)/compiler/interpreter
+             -I$(PROJ_ROOT)/compiler/interpreter \
+             -I$(BUILD_DIR)/rtaudio/include
 
-# --- -DSOUNDFILE
-# DEFINES := -DINTERP_DSP -DRTAUDIO_DRIVER  -DDAISY
-DEFINES := -DINTERP_DSP -DJACKAUDIO_DRIVER  -DDAISY
-# ---- Build rule ----
-$(TARGET): $(SRC)
-	@echo "🔧 Building $(TARGET)..."
-	@mkdir -p $(dir $(TARGET))
-	$(CXX) $(CXXFLAGS) $(INC_FLAGS) $(DEFINES) -shared -o $@ $< -L$(BUILD_DIR) -Wl,-rpath,'$$ORIGIN' $(LIBS)
+DEFINES := -DINTERP_DSP -DJACKAUDIO_DRIVER -DDAISY
 
-	@echo "🔗 Ensuring proper symlinks for RtAudio..."
-	@cd $(BUILD_DIR) && \
-	if [ -f librtaudio.so.6.0.0 ]; then \
-		ln -sf librtaudio.so.6.0.0 librtaudio.so.6; \
-		ln -sf librtaudio.so.6 librtaudio.so; \
+
+# ================ Build RtAudio locally ======================
+
+RTAUDIO_VERSION := master
+RTAUDIO_SRC := $(BUILD_DIR)/rtaudio
+RTAUDIO_BUILD := $(RTAUDIO_SRC)/build
+
+.PHONY: rtaudio
+rtaudio:
+	@echo "🎵 Fetching RtAudio source..."
+	@mkdir -p $(BUILD_DIR)
+	@if [ ! -d "$(RTAUDIO_SRC)" ]; then \
+		git clone --depth=1 --branch $(RTAUDIO_VERSION) https://github.com/thestk/rtaudio.git $(RTAUDIO_SRC); \
 	fi
 
-	@echo "🔍 Setting RPATH = \$O
+	@echo "🏗 Building RtAudio locally with JACK + PulseAudio + ALSA..."
+	@mkdir -p $(RTAUDIO_BUILD)
+	@cd $(RTAUDIO_BUILD) && \
+	cmake .. \
+		-DRTAUDIO_BUILD_SHARED=ON \
+		-DRTAUDIO_BUILD_STATIC=ON \
+		-DRTAUDIO_API_JACK=ON \
+		-DRTAUDIO_API_PULSE=ON \
+		-DRTAUDIO_API_ALSA=ON \
+		-DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+		-DCMAKE_INSTALL_PREFIX=$(BUILD_DIR)
+
+	@cd $(RTAUDIO_BUILD) && make -j
+
+	@echo "📦 Installing RtAudio to $(BUILD_DIR)..."
+	@cd $(RTAUDIO_BUILD) && make install
+
+	@echo "🔗 Creating symlinks in $(BUILD_DIR)..."
+	@cd $(BUILD_DIR)/lib && \
+	if [ -f librtaudio.so ]; then \
+		SOFILE=$$(readlink -f librtaudio.so); \
+		BASENAME=$$(basename $$SOFILE); \
+		ln -sf $$BASENAME librtaudio.so.6; \
+		ln -sf $$BASENAME librtaudio.so; \
+	fi
+
+	@echo "🎉 RtAudio built locally!"
+
+
+# ================= Build Target ============================
+
+$(TARGET): rtaudio $(SRC)
+	@echo "🔧 Building $(TARGET)..."
+	@mkdir -p $(dir $(TARGET))
+
+	$(CXX) $(CXXFLAGS) $(INC_FLAGS) $(DEFINES) -shared -o $@ $< \
+		-L$(BUILD_DIR)/lib -Wl,-rpath,'$$ORIGIN' $(LIBS)
+
+	@echo "✨ Build finished."
+
+
+# ================= Clean ============================
+
+.PHONY: clean
+clean:
+	rm -f $(TARGET)
+	rm -rf $(RTAUDIO_SRC)
