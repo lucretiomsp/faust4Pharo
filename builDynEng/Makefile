@@ -4,6 +4,9 @@
 PROJ_ROOT := ..
 BUILD_DIR := $(PROJ_ROOT)/librariesLinux
 
+# Convert BUILD_DIR to an absolute path so CMake never misinterprets it
+ABS_BUILD_DIR := $(abspath $(BUILD_DIR))
+
 # ---- Compiler setup ----
 CXX := g++
 CXXFLAGS := -std=c++11 -O3 -Wall -Wextra -Wno-unused-parameter -fPIC
@@ -51,11 +54,11 @@ rtaudio:
 		-DRTAUDIO_API_PULSE=ON \
 		-DRTAUDIO_API_ALSA=ON \
 		-DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-		-DCMAKE_INSTALL_PREFIX=$(BUILD_DIR)
+		-DCMAKE_INSTALL_PREFIX=$(ABS_BUILD_DIR)
 
 	@cd $(RTAUDIO_BUILD) && make -j
 
-	@echo "📦 Installing RtAudio to $(BUILD_DIR)..."
+	@echo "📦 Installing RtAudio to $(ABS_BUILD_DIR)..."
 	@cd $(RTAUDIO_BUILD) && make install
 
 	@echo "🔗 Creating symlinks in $(BUILD_DIR)..."
@@ -70,21 +73,4 @@ rtaudio:
 	@echo "🎉 RtAudio built locally!"
 
 
-# ================= Build Target ============================
-
-$(TARGET): rtaudio $(SRC)
-	@echo "🔧 Building $(TARGET)..."
-	@mkdir -p $(dir $(TARGET))
-
-	$(CXX) $(CXXFLAGS) $(INC_FLAGS) $(DEFINES) -shared -o $@ $< \
-		-L$(BUILD_DIR)/lib -Wl,-rpath,'$$ORIGIN' $(LIBS)
-
-	@echo "✨ Build finished."
-
-
-# ================= Clean ============================
-
-.PHONY: clean
-clean:
-	rm -f $(TARGET)
-	rm -rf $(RTAUDIO_SRC)
+#
