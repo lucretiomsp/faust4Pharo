@@ -27,7 +27,7 @@ INC_FLAGS := -I$(PROJ_ROOT)/architecture \
              -I$(PROJ_ROOT)/compiler/interpreter \
              -I$(BUILD_DIR)/rtaudio/include
 
-DEFINES := -DINTERP_DSP -DJACKAUDIO_DRIVER -DDAISY
+DEFINES := -DINTERP_DSP -DALSA_DRIVER -DDAISY
 
 
 # ================ Build RtAudio locally ======================
