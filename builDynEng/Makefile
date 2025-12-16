@@ -24,7 +24,7 @@ INC_FLAGS := -I$(PROJ_ROOT)/architecture \
              -I$(PROJ_ROOT)/compiler/interpreter
 
 # ---- Defines ----
-DEFINES := -DINTERP_DSP -DALSA_DRIVER -DDAISY
+# DEFINES := -DINTERP_DSP -DALSA_DRIVER -DDAISY
 
 # ---- Build rule ----
 $(TARGET): $(SRC)
