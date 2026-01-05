@@ -1,43 +1,38 @@
-- name: Create distribution package
-  run: |
-    set -e
+name: Build Linux Distribution
 
-    mkdir -p dist/lib
-    cp librariesLinux/libdynamic-engine.so dist/lib/
+on:
+  push:
+  workflow_dispatch:
 
-    echo "Checking for libraries to bundle..."
-    ldd librariesLinux/libdynamic-engine.so | grep "=> /" | \
-      awk '{print $3}' | \
-      grep -v "^/lib" | \
-      grep -v "^/usr/lib" | \
-      while read lib; do
-        echo "Bundling: $lib"
-        cp "$lib" dist/lib/
-      done || true
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-    cat > dist/README.md << 'EOF'
-    # Dynamic Engine Library
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    ## System Requirements
-    - Linux with ALSA/PulseAudio support
-    - x86_64 architecture
+      - name: Create distribution package
+        run: |
+          set -e
 
-    ## Usage
+          mkdir -p dist/lib
+          cp librariesLinux/libdynamic-engine.so dist/lib/
 
-    ### System-wide installation
-    ```bash
-    sudo cp lib/libdynamic-engine.so /usr/local/lib/
-    sudo ldconfig
-    ```
+          echo "Checking for libraries to bundle..."
+          for lib in $(ldd librariesLinux/libdynamic-engine.so | awk '/=> \// {print $3}' | grep -v '^/lib' | grep -v '^/usr/lib'); do
+            echo "Bundling: $lib"
+            cp "$lib" dist/lib/
+          done || true
 
-    ### Local usage
-    ```bash
-    export LD_LIBRARY_PATH=/path/to/dist/lib:$LD_LIBRARY_PATH
-    ```
-    EOF
+          echo "# Dynamic Engine Library" > dist/README.md
+          echo "" >> dist/README.md
+          echo "## System Requirements" >> dist/README.md
+          echo "- Linux with ALSA/PulseAudio support" >> dist/README.md
+          echo "- x86_64 architecture" >> dist/README.md
 
-    echo "Build Date: $(date -u +%Y-%m-%d)" > dist/BUILD_INFO.txt
-    echo "Git Commit: ${GITHUB_SHA:0:8}" >> dist/BUILD_INFO.txt
-    echo "Platform: Linux x86_64" >> dist/BUILD_INFO.txt
+          echo "Build Date: $(date -u +%Y-%m-%d)" > dist/BUILD_INFO.txt
+          echo "Git Commit: ${GITHUB_SHA:0:8}" >> dist/BUILD_INFO.txt
+          echo "Platform: Linux x86_64" >> dist/BUILD_INFO.txt
 
-    ls -lh dist/lib/
+          ls -lh dist/lib/
