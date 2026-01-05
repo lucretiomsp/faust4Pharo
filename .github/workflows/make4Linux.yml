@@ -36,3 +36,10 @@ jobs:
           echo "Platform: Linux x86_64" >> dist/BUILD_INFO.txt
 
           ls -lh dist/lib/
+          
+      - name: Upload Linux distribution artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-dist
+          path: dist/
+
