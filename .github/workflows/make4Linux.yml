@@ -85,3 +85,105 @@ jobs:
           make LDFLAGS="$LDFLAGS" CPPFLAGS="$CPPFLAGS"
       
       - name: Verify static linking
+        run: |
+          echo "Checking library dependencies:"
+          ldd librariesLinux/libdynamic-engine.so
+          echo ""
+          echo "Verifying libsndfile is NOT in dynamic dependencies:"
+          if ldd librariesLinux/libdynamic-engine.so | grep -q "libsndfile"; then
+            echo "❌ ERROR: libsndfile is still dynamically linked!"
+            exit 1
+          else
+            echo "✅ libsndfile is statically linked"
+          fi
+      
+      - name: Strip and optimize library
+        run: |
+          strip --strip-unneeded librariesLinux/libdynamic-engine.so
+          # Set RPATH to look in same directory for any bundled libs
+          patchelf --set-rpath '$ORIGIN' librariesLinux/libdynamic-engine.so || true
+      
+      - name: Create distribution package
+        run: |
+          mkdir -p dist/lib
+          
+          # Copy the main library
+          cp librariesLinux/libdynamic-engine.so dist/lib/
+          
+          # Check for any non-system dynamic dependencies and bundle them
+          echo "Checking for libraries to bundle..."
+          ldd librariesLinux/libdynamic-engine.so | grep "=> /" | \
+            awk '{print $3}' | \
+            grep -v "^/lib" | \
+            grep -v "^/usr/lib" | \
+            while read lib; do
+              echo "Bundling: $lib"
+              cp "$lib" dist/lib/
+            done || true
+          
+          # Create README with usage instructions
+          cat > dist/README.md << 'EOF'
+          # Dynamic Engine Library
+          
+          ## System Requirements
+          - Linux with ALSA/PulseAudio support (standard on most distributions)
+          - x86_64 architecture
+          
+          ## Usage
+          
+          ### Option 1: System-wide installation
+```bash
+          sudo cp lib/libdynamic-engine.so /usr/local/lib/
+          sudo ldconfig
+```
+          
+          ### Option 2: Local usage with LD_LIBRARY_PATH
+```bash
+          export LD_LIBRARY_PATH=/path/to/dist/lib:$LD_LIBRARY_PATH
+```
+          
+          ### Option 3: Copy to your application directory
+          Copy `lib/libdynamic-engine.so` next to your executable.
+          
+          ## What's Included
+          - libdynamic-engine.so (with statically linked libsndfile, ogg, vorbis, flac)
+          - Minimal runtime dependencies (only system libraries: glibc, ALSA, PulseAudio)
+          
+          ## Dependencies Check
+          Run `ldd lib/libdynamic-engine.so` to see runtime dependencies.
+          EOF
+          
+          # Create version info
+          echo "Build Date: $(date -u +%Y-%m-%d)" > dist/BUILD_INFO.txt
+          echo "Git Commit: ${GITHUB_SHA:0:8}" >> dist/BUILD_INFO.txt
+          echo "Platform: Linux x86_64" >> dist/BUILD_INFO.txt
+          
+          ls -lh dist/lib/
+      
+      - name: Verify compiled library
+        run: |
+          if [ -f dist/lib/libdynamic-engine.so ]; then
+            echo "✅ libdynamic-engine.so successfully built"
+            echo "Size: $(ls -lh dist/lib/libdynamic-engine.so | awk '{print $5}')"
+          else
+            echo "❌ libdynamic-engine.so not found!"
+            exit 1
+          fi
+      
+      - name: Create tarball
+        run: |
+          tar czf dynamic-engine-linux-x64.tar.gz -C dist .
+          echo "✅ Created distributable tarball"
+          ls -lh dynamic-engine-linux-x64.tar.gz
+      
+      - name: Upload library artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dynamic-engine-library-linux-x64
+          path: dynamic-engine-linux-x64.tar.gz
+      
+      - name: Upload library only (for quick access)
+        uses: actions/upload-artifact@v4
+        with:
+          name: libdynamic-engine.so
+          path: dist/lib/libdynamic-engine.so
