@@ -1,65 +1,43 @@
 - name: Create distribution package
-        run: |
-          mkdir -p dist/lib
-          
-          # Copy the main library
-          cp librariesLinux/libdynamic-engine.so dist/lib/
-          
-          # Check for any non-system dynamic dependencies and bundle them
-          echo "Checking for libraries to bundle..."
-          ldd librariesLinux/libdynamic-engine.so | grep "=> /" | \
-            awk '{print $3}' | \
-            grep -v "^/lib" | \
-            grep -v "^/usr/lib" | \
-            while read lib; do
-              echo "Bundling: $lib"
-              cp "$lib" dist/lib/
-            done || true
-          
-          # Create README with usage instructions
-          cat > dist/README.md << 'EOF'
-          # Dynamic Engine Library
-          
-          ## System Requirements
-          - Linux with ALSA/PulseAudio support (standard on most distributions)
-          - x86_64 architecture
-          
-          ## Usage
-          
-          ### Option 1: System-wide installation
-```bash
-          sudo cp lib/libdynamic-engine.so /usr/local/lib/
-          sudo ldconfig
-```
-          
-          ### Option 2: Local usage with LD_LIBRARY_PATH
-```bash
-          export LD_LIBRARY_PATH=/path/to/dist/lib:$LD_LIBRARY_PATH
-```
-          
-          ### Option 3: Copy to your application directory
-          Copy `lib/libdynamic-engine.so` next to your executable.
-          
-          ## What's Included
-          - libdynamic-engine.so (with statically linked libsndfile, ogg, vorbis, flac)
-          - Minimal runtime dependencies (only system libraries: glibc, ALSA, PulseAudio)
-          
-          ## Dependencies Check
-          Run `ldd lib/libdynamic-engine.so` to see runtime dependencies.
-          EOF
-          
-          # Create version info
-          echo "Build Date: $(date -u +%Y-%m-%d)" > dist/BUILD_INFO.txt
-          echo "Git Commit: ${GITHUB_SHA:0:8}" >> dist/BUILD_INFO.txt
-          echo "Platform: Linux x86_64" >> dist/BUILD_INFO.txt
-          
-          ls -lh dist/lib/
-```
+  run: |
+    set -e
 
-The key change: **removed the line breaks before the opening backticks** on lines that were like:
-```
-### Option 1: System-wide installation
-```bash   <-- This line should have the backticks immediately, no blank line
-```
+    mkdir -p dist/lib
+    cp librariesLinux/libdynamic-engine.so dist/lib/
 
-The fixed version has proper indentation for the bash code blocks within the heredoc.
+    echo "Checking for libraries to bundle..."
+    ldd librariesLinux/libdynamic-engine.so | grep "=> /" | \
+      awk '{print $3}' | \
+      grep -v "^/lib" | \
+      grep -v "^/usr/lib" | \
+      while read lib; do
+        echo "Bundling: $lib"
+        cp "$lib" dist/lib/
+      done || true
+
+    cat > dist/README.md << 'EOF'
+    # Dynamic Engine Library
+
+    ## System Requirements
+    - Linux with ALSA/PulseAudio support
+    - x86_64 architecture
+
+    ## Usage
+
+    ### System-wide installation
+    ```bash
+    sudo cp lib/libdynamic-engine.so /usr/local/lib/
+    sudo ldconfig
+    ```
+
+    ### Local usage
+    ```bash
+    export LD_LIBRARY_PATH=/path/to/dist/lib:$LD_LIBRARY_PATH
+    ```
+    EOF
+
+    echo "Build Date: $(date -u +%Y-%m-%d)" > dist/BUILD_INFO.txt
+    echo "Git Commit: ${GITHUB_SHA:0:8}" >> dist/BUILD_INFO.txt
+    echo "Platform: Linux x86_64" >> dist/BUILD_INFO.txt
+
+    ls -lh dist/lib/
