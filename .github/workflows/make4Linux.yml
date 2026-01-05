@@ -1,109 +1,4 @@
-name: Build Dynamic Engine
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:
-
-jobs:
-  build-library:
-    runs-on: ubuntu-20.04  # Older Ubuntu for better glibc compatibility
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            g++ \
-            cmake \
-            pkg-config \
-            patchelf \
-            libasound2-dev \
-            libpulse-dev \
-            libjack-jackd2-dev \
-            autoconf \
-            automake \
-            libtool \
-            wget
-      
-      - name: Build static libsndfile and dependencies
-        run: |
-          mkdir -p $HOME/static-libs
-          
-          # Build libogg
-          wget https://downloads.xiph.org/releases/ogg/libogg-1.3.5.tar.gz
-          tar xzf libogg-1.3.5.tar.gz
-          cd libogg-1.3.5
-          ./configure --prefix=$HOME/static-libs --enable-static --disable-shared
-          make -j$(nproc)
-          make install
-          cd ..
-          
-          # Build libvorbis
-          wget https://downloads.xiph.org/releases/vorbis/libvorbis-1.3.7.tar.gz
-          tar xzf libvorbis-1.3.7.tar.gz
-          cd libvorbis-1.3.7
-          ./configure --prefix=$HOME/static-libs --enable-static --disable-shared \
-            --with-ogg=$HOME/static-libs
-          make -j$(nproc)
-          make install
-          cd ..
-          
-          # Build FLAC
-          wget https://downloads.xiph.org/releases/flac/flac-1.4.2.tar.xz
-          tar xf flac-1.4.2.tar.xz
-          cd flac-1.4.2
-          ./configure --prefix=$HOME/static-libs --enable-static --disable-shared \
-            --with-ogg=$HOME/static-libs --disable-programs
-          make -j$(nproc)
-          make install
-          cd ..
-          
-          # Build libsndfile
-          wget https://github.com/libsndfile/libsndfile/releases/download/1.2.2/libsndfile-1.2.2.tar.xz
-          tar xf libsndfile-1.2.2.tar.xz
-          cd libsndfile-1.2.2
-          PKG_CONFIG_PATH=$HOME/static-libs/lib/pkgconfig \
-            ./configure --prefix=$HOME/static-libs --enable-static --disable-shared
-          make -j$(nproc)
-          make install
-          cd ..
-      
-      - name: Build Dynamic Engine Library
-        working-directory: builDynEng
-        run: |
-          # Set up environment to use static libs
-          export PKG_CONFIG_PATH=$HOME/static-libs/lib/pkgconfig:$PKG_CONFIG_PATH
-          export LDFLAGS="-L$HOME/static-libs/lib -static-libgcc -static-libstdc++"
-          export CPPFLAGS="-I$HOME/static-libs/include"
-          
-          # Build with static libsndfile
-          make LDFLAGS="$LDFLAGS" CPPFLAGS="$CPPFLAGS"
-      
-      - name: Verify static linking
-        run: |
-          echo "Checking library dependencies:"
-          ldd librariesLinux/libdynamic-engine.so
-          echo ""
-          echo "Verifying libsndfile is NOT in dynamic dependencies:"
-          if ldd librariesLinux/libdynamic-engine.so | grep -q "libsndfile"; then
-            echo "❌ ERROR: libsndfile is still dynamically linked!"
-            exit 1
-          else
-            echo "✅ libsndfile is statically linked"
-          fi
-      
-      - name: Strip and optimize library
-        run: |
-          strip --strip-unneeded librariesLinux/libdynamic-engine.so
-          # Set RPATH to look in same directory for any bundled libs
-          patchelf --set-rpath '$ORIGIN' librariesLinux/libdynamic-engine.so || true
-      
-      - name: Create distribution package
+- name: Create distribution package
         run: |
           mkdir -p dist/lib
           
@@ -159,31 +54,12 @@ jobs:
           echo "Platform: Linux x86_64" >> dist/BUILD_INFO.txt
           
           ls -lh dist/lib/
-      
-      - name: Verify compiled library
-        run: |
-          if [ -f dist/lib/libdynamic-engine.so ]; then
-            echo "✅ libdynamic-engine.so successfully built"
-            echo "Size: $(ls -lh dist/lib/libdynamic-engine.so | awk '{print $5}')"
-          else
-            echo "❌ libdynamic-engine.so not found!"
-            exit 1
-          fi
-      
-      - name: Create tarball
-        run: |
-          tar czf dynamic-engine-linux-x64.tar.gz -C dist .
-          echo "✅ Created distributable tarball"
-          ls -lh dynamic-engine-linux-x64.tar.gz
-      
-      - name: Upload library artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: dynamic-engine-library-linux-x64
-          path: dynamic-engine-linux-x64.tar.gz
-      
-      - name: Upload library only (for quick access)
-        uses: actions/upload-artifact@v4
-        with:
-          name: libdynamic-engine.so
-          path: dist/lib/libdynamic-engine.so
+```
+
+The key change: **removed the line breaks before the opening backticks** on lines that were like:
+```
+### Option 1: System-wide installation
+```bash   <-- This line should have the backticks immediately, no blank line
+```
+
+The fixed version has proper indentation for the bash code blocks within the heredoc.
